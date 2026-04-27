@@ -1,0 +1,6 @@
+---
+title: "In Class Template"
+author: "Ethan C"
+format: pdf
+---
+
