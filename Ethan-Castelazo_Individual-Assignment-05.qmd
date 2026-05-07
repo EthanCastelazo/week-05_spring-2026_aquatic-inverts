@@ -1,0 +1,157 @@
+---
+title: "Assignment 5"
+author: "Ethan"
+format: 
+  pdf:
+    include-in-header: 
+       text: |
+         \usepackage{fvextra}
+         \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+         \DefineVerbatimEnvironment{OutputCode}{Verbatim}{breaklines,commandchars=\\\{\}}
+execute:
+  message: false
+  warning: false
+---
+
+# Set Up
+
+## Packages 
+
+```{r}
+#| label: packages
+
+library(tidyverse)
+library(here)
+library(janitor)
+library(snakecase)
+
+#Wrap Axis Label
+library(scales)
+
+#reading .xlsx files
+library(readxl)
+
+# visualize missing data
+library(naniar)
+
+# visualizing
+library(patchwork)
+```
+
+
+## Data 
+```{r}
+#| label: data
+
+# taxnomic information
+taxon_list <- read_csv(here("data", "taxon_list.csv"))
+
+# aquatic invertebrates
+aq_ins <- read_xlsx(
+  here("data", "Aquatic Sampling Data-2026-03-10.xlsx"),
+  sheet = "Aquatic Insects"
+)
+
+# site information
+sites <- read_xlsx(
+  here("data", "Aquatic Sampling Data-2026-03-10.xlsx"),
+  sheet = "sites"
+)
+
+# water quality
+
+water_quality <- read_xlsx(
+  here("data", "Aquatic Sampling Data-2026-03-10.xlsx"),
+  sheet = "Water Quality",
+  na = c("", "n/a", "N/A", "over", "173+")
+)
+```
+
+## Necessary Code from Class
+
+```{r}
+#| label: ncos-sites
+
+# creating new object from sites
+ncos_sites <- sites %>% 
+  # filering to only include sites at NCOS, sampled quarterly
+  filter(sector == "NCOS" & sampling_frequency == "Quarterly")
+
+
+
+# creating new object from taxon_list
+taxon_list_clean <- taxon_list %>% 
+  # converted taxon names to snake case
+  mutate(verbatim_name = to_any_case(verbatim_name,
+                                     case = "snake"))
+
+
+
+water_quality_clean <- water_quality %>% 
+  clean_names() %>% 
+  semi_join(ncos_sites, by = "site") %>% 
+  unite("date_site", date, site, remove = TRUE) %>%
+  group_by(date_site) %>% 
+  summarize(med_ph = median(p_h, na.rm = TRUE),
+            med_sal = median(salinity_ppt, na.rm = TRUE),
+            med_do = median(dissolved_oxygen_mg_l, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  filter(date_site != "2022-08-12NVBR")
+
+
+aq_ins_clean <- aq_ins %>% 
+  clean_names() %>% 
+  semi_join(ncos_sites, by = "site") %>% 
+  rename(date = date_on_vial) %>% 
+  select(date, sample_type,site,
+         ostracod,
+         copepod,
+         hemiptera_corixidae_boatman,
+         cladocera,
+         nematode,
+         diptera_ceratopogonidae,
+         annelida_oligochaete,
+         annelida_polychaete,
+         diptera_chironomid) %>% 
+  filter(sample_type %in% c("FB250", "FB 250")) %>% 
+  pivot_longer(
+    # columns to make longer
+    cols = ostracod:annelida_polychaete,
+    # new column for the old column names
+    names_to = "taxon",
+    # new column for the values in each of the old columns
+    values_to = "abundance"
+  ) %>% 
+  group_by(date, site, taxon) %>% 
+  summarize(ave_lit = sum(abundance, na.rm = TRUE)/7.5) %>% 
+  ungroup() %>% 
+  unite("date_site", date, site, remove = FALSE) %>% 
+  left_join(water_quality_clean, by = "date_site") %>% 
+  left_join(taxon_list_clean, by = c("taxon" = "verbatim_name")) %>% 
+  mutate(site_full = case_when(
+    site == "NVBR" ~ "North of Venoco Bridge",
+    site == "NEC" ~ "South of Venoco Bridge",
+    site == "NMC" ~ "Main Channel",
+    site == "NPB" ~ "South of Phelps Bridge",
+    site == "NPB1" ~ "North of Phelps Bridge",
+    site == "NPB2" ~ "West Pond",
+    site == "NDV" ~ "Devereux Creek")) %>% 
+  mutate(site_full = fct_reorder(site_full,
+                                 med_sal,
+                                 .fun = "median",
+                                 .na_rm = TRUE),
+         site_full = fct_rev(site_full))
+
+```
+
+
+# 1. Visualizing differences across sites in major taxon
+
+## a. Planning the Figure
+
+- x-axis: Salinity (ppt)
+- y-axis: Ostracod
+- geometry to represent average abundance/L: geom_jitter()
+- geometry to represent medians: stat_summary()
+
+
