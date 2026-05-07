@@ -2,6 +2,7 @@
 title: "In Class Template"
 author: "Ethan C"
 format: pdf
+source: editor
 ---
 
 # 1. Set Up
@@ -72,6 +73,186 @@ Goal: createa a new object from `sites` that only includes NCOS sites
 ncos_sites <- sites %>% 
   # filering to only include sites at NCOS, sampled quarterly
   filter(sector == "NCOS" & sampling_frequency == "Quarterly")
+
+```
+
+## clean taxon list
+
+Goal: convert character strings in the existing `snakecase` data frame into snakecase
+
+```{r}
+#| label: cleaning-taxon
+
+# creating new object from taxon_list
+taxon_list_clean <- taxon_list %>% 
+  # converted taxon names to snake case
+  mutate(verbatim_name = to_any_case(verbatim_name,
+                                     case = "snake"))
+
+```
+
+## clean `water_quality`
+
+Goal: create a data frame with median pH, median DO (mg/L), mean salinity (ppt) for each date and site
+
+- create a new object from `water_quality`
+- clean column names
+- only include surveys from quarterly NCOS sites
+- create a new column called `date_site` to join with later data frames
+= group by date_site
+- calculate median pH, salinity, and DO
+- ungroup
+- filter out any outlines
+
+```{r}
+#| label: cleaning-water-quality
+
+water_quality_clean <- water_quality %>% 
+  clean_names() %>% 
+  semi_join(ncos_sites, by = "site") %>% 
+  unite("date_site", date, site, remove = TRUE) %>%
+  group_by(date_site) %>% 
+  summarize(med_ph = median(p_h, na.rm = TRUE),
+            med_sal = median(salinity_ppt, na.rm = TRUE),
+            med_do = median(dissolved_oxygen_mg_l, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  filter(date_site != "2022-08-12NVBR")
+            
+```
+
+
+## clean `aq_ins`
+
+Goal: create a long format data frame in which each row contains the counted individuals in each taxon during each survey. The data frame should include taxonomic information for each organism and the water quality information for each survey.
+
+- create a new object from `aq_ins`
+- clean column names
+- filter to only include quarterly NCOS sites
+- select columns
+- filer to only include "filtered beaker" sample
+- convert the data frame to long format
+- group by site, date, and taxon
+- calculate  average abundance per liter
+- create a new column called `date_site` to join with water quality
+- join data frames
+- join taxon list
+
+```{r}
+
+aq_ins_clean <- aq_ins %>% 
+  clean_names() %>% 
+  semi_join(ncos_sites, by = "site") %>% 
+  rename(date = date_on_vial) %>% 
+  select(date, sample_type,site,
+         ostracod,
+         copepod,
+         hemiptera_corixidae_boatman,
+         cladocera,
+         nematode,
+         diptera_ceratopogonidae,
+         annelida_oligochaete,
+         annelida_polychaete,
+         diptera_chironomid) %>% 
+  filter(sample_type %in% c("FB250", "FB 250")) %>% 
+  pivot_longer(
+    # columns to make longer
+    cols = ostracod:annelida_polychaete,
+    # new column for the old column names
+    names_to = "taxon",
+    # new column for the values in each of the old columns
+    values_to = "abundance"
+  ) %>% 
+  group_by(date, site, taxon) %>% 
+  summarize(ave_lit = sum(abundance, na.rm = TRUE)/7.5) %>% 
+  ungroup() %>% 
+  unite("date_site", date, site, remove = FALSE) %>% 
+  left_join(water_quality_clean, by = "date_site") %>% 
+  left_join(taxon_list_clean, by = c("taxon" = "verbatim_name")) %>% 
+  mutate(site_full = case_when(
+    site == "NVBR" ~ "North of Venoco Bridge",
+    site == "NEC" ~ "South of Venoco Bridge",
+    site == "NMC" ~ "Main Channel",
+    site == "NPB" ~ "South of Phelps Bridge",
+    site == "NPB1" ~ "North of Phelps Bridge",
+    site == "NPB2" ~ "West Pond",
+    site == "NDV" ~ "Devereux Creek")) %>% 
+  mutate(site_full = fct_reorder(site_full,
+                                 med_sal,
+                                 .fun = "median",
+                                 .na_rm = TRUE),
+         site_full = fct_rev(site_full))
+
+```
+
+
+# 3. Visualizing
+
+## Visualize missing values
+
+```{r}
+#| label: missing-viz
+
+gg_miss_var(aq_ins_clean)
+
+```
+
+```{r}
+#| label: salinity-plot
+
+salinity_plot <- ggplot(data = aq_ins_clean,
+                        mapping = aes(x = site_full,
+                                      y = med_sal))+
+  geom_jitter(height = 0,
+              width = 0.1,
+              shape = 21)+
+  stat_summary(geom = "point",
+               fun = median,
+               color = 'red')+
+  scale_x_discrete(labels = label_wrap(width = 15))
+
+salinity_plot
+```
+
+
+
+
+
+```{r}
+#| label: copepod-cleaning
+
+copepods <- aq_ins_clean %>% 
+  filter(taxon == "copepod") %>% 
+  mutate(log_ave_lit = log(ave_lit + 1))
+
+
+```
+
+
+```{r}
+#| label: copepod-plot
+
+copepod_plot <- ggplot(data = copepods,
+                       mapping = aes(x = site_full,
+                                     y = log_ave_lit))+
+  geom_jitter(height = 0,
+              width = 0.1,
+              shape = 21) +
+  stat_summary(geom = "point",
+              fun = median,
+              color = "blue",
+              size = 2)+
+  scale_x_discrete(labels = label_wrap(width = 15)) +
+                     labs(x = "site",
+                          y = "log + 1 transformed average abundance/L") +
+                     theme_bw()
+copepod_plot
+
+```
+
+```{r}
+#| label: multipanel
+
+salinity_plot / copepod_plot
 
 ```
 
