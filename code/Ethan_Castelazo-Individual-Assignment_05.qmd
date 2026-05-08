@@ -142,6 +142,11 @@ aq_ins_clean <- aq_ins %>%
                                  .na_rm = TRUE),
          site_full = fct_rev(site_full))
 
+
+copepods <- aq_ins_clean %>% 
+  filter(taxon == "copepod") %>% 
+  mutate(log_ave_lit = log(ave_lit + 1))
+
 ```
 
 
@@ -167,4 +172,80 @@ slice_sample(ostracods, n = 10)
 
 ```
 
+
+## c. Coding the figure
+
+```{r}
+#| label: ostracod-visualization
+
+ostracod_plot <- ggplot(data = ostracods,
+                       mapping = aes(x = site_full,
+                                     y = log_ave_lit))+
+  geom_jitter(height = 0,
+              width = 0.1,
+              shape = 21) +
+  stat_summary(geom = "point",
+              fun = median,
+              color = "green",
+              size = 2)+
+  scale_x_discrete(labels = label_wrap(width = 10)) +
+                     labs(x = "site",
+                          y = "log + 1 transformed average abundance/L",
+                          title = "Ostracods") +
+                     theme_bw()
+ostracod_plot
+```
+
+
+## d. Creating a multipanel figure
+
+
+```{r}
+#| label: plotting-objects-from-class
+
+# creating an object of a salinity plot
+salinity_plot <- ggplot(data = aq_ins_clean,
+                        mapping = aes(x = site_full,
+                                      y = med_sal))+
+  geom_jitter(height = 0,
+              width = 0.1,
+              shape = 21)+
+  stat_summary(geom = "point",
+               fun = median,
+               color = 'red')+
+  scale_x_discrete(labels = label_wrap(width = 10))+
+  labs(x = "site",
+       y = " Median Salinity (ppt)",
+       title = "Site Salinity")
+
+
+
+# creating a plotting object of copepod abundance
+copepod_plot <- ggplot(data = copepods,
+                       mapping = aes(x = site_full,
+                                     y = log_ave_lit))+
+  geom_jitter(height = 0,
+              width = 0.1,
+              shape = 21) +
+  stat_summary(geom = "point",
+              fun = median,
+              color = "blue",
+              size = 2)+
+  scale_x_discrete(labels = label_wrap(width = 10)) +
+                     labs(x = "site",
+                          y = "log + 1 transformed average abundance/L",
+                          title = "Copepod") +
+                     theme_bw()
+
+```
+
+
+```{r}
+#| label: creating-multi-pane
+#| fig-width: 12
+#| fig-height: 8
+
+salinity_plot /
+  (copepod_plot | ostracod_plot)
+```
 
