@@ -150,9 +150,21 @@ aq_ins_clean <- aq_ins %>%
 ## a. Planning the Figure
 
 - x-axis: Salinity (ppt)
-- y-axis: Ostracod
+- y-axis: taxon
 - geometry to represent average abundance/L: geom_jitter()
 - geometry to represent medians: stat_summary()
 
-## Wrangling the data
+## b. Wrangling the data
+
+```{r}
+#| label: ostracod-wrangling
+
+ostracods <- aq_ins_clean %>% 
+  filter(taxon == "ostracod") %>% 
+  mutate(log_ave_lit = log(ave_lit + 1))
+
+slice_sample(ostracods, n = 10)
+
+```
+
 
