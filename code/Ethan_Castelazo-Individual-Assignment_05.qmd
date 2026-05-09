@@ -189,6 +189,8 @@ ostracod_plot <- ggplot(data = ostracods,
               color = "green",
               size = 2)+
   scale_x_discrete(labels = label_wrap(width = 10)) +
+  scale_y_continuous(expand = c(0, 0),
+                     limits = c(0, 8)) +
                      labs(x = "site",
                           y = "log + 1 transformed average abundance/L",
                           title = "Ostracods") +
@@ -214,6 +216,8 @@ salinity_plot <- ggplot(data = aq_ins_clean,
                fun = median,
                color = 'red')+
   scale_x_discrete(labels = label_wrap(width = 10))+
+  scale_y_continuous(expand = c(0, 0),
+                     limits = c(0, 200)) +
   labs(x = "site",
        y = " Median Salinity (ppt)",
        title = "Site Salinity")
@@ -232,6 +236,8 @@ copepod_plot <- ggplot(data = copepods,
               color = "blue",
               size = 2)+
   scale_x_discrete(labels = label_wrap(width = 10)) +
+scale_y_continuous(expand = c(0, 0),
+                     limits = c(0, 10)) +
                      labs(x = "site",
                           y = "log + 1 transformed average abundance/L",
                           title = "Copepod") +
@@ -254,5 +260,9 @@ salinity_plot /
 The biggest differences in copepod and ostracod abundance across sites can be seen at the East Channel site, where copepods are highest in abundance, and osrtacods are extremely low in abundance. The two species are similar in abundance at the Main Channel, South of Phelps Bridge, North of Phelps Bridge, and Devereux Creek sites.
 
 There doesn't appear to be a correlation between site salinity and copepod or ostracod abundance. Median salinity is order by descending ppt from left to right on the x-axis, and the invertebrate abundance plots with the same x-axis don't follow a descending or ascending pattern, appearing relatively random.
+
+
+# 2. Visualizing total abundance as a function of salinity
+
 
 
