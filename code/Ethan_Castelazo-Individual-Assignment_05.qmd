@@ -264,5 +264,12 @@ There doesn't appear to be a correlation between site salinity and copepod or os
 
 # 2. Visualizing total abundance as a function of salinity
 
+## a. Planning the Figure
+
+- x-axis: Salinity (ppt)
+- y-axis: log_avg_lit
+- color: taxon
+- geometry: geom_points()
+- facets: facet_wrap(~ taxon)
 
 
