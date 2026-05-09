@@ -130,12 +130,12 @@ aq_ins_clean <- aq_ins %>%
   left_join(taxon_list_clean, by = c("taxon" = "verbatim_name")) %>% 
   mutate(site_full = case_when(
     site == "NVBR" ~ "North of Venoco Bridge",
-    site == "NEC" ~ "South of Venoco Bridge",
+    site == "NEC" ~ "East Channel",
     site == "NMC" ~ "Main Channel",
     site == "NPB" ~ "South of Phelps Bridge",
     site == "NPB1" ~ "North of Phelps Bridge",
-    site == "NPB2" ~ "West Pond",
-    site == "NDV" ~ "Devereux Creek")) %>% 
+    site == "NPB2" ~ "Phelps Road",
+    site == "NDC" ~ "Devereux Creek")) %>% 
   mutate(site_full = fct_reorder(site_full,
                                  med_sal,
                                  .fun = "median",
@@ -239,7 +239,6 @@ copepod_plot <- ggplot(data = copepods,
 
 ```
 
-
 ```{r}
 #| label: creating-multi-pane
 #| fig-width: 12
@@ -248,4 +247,12 @@ copepod_plot <- ggplot(data = copepods,
 salinity_plot /
   (copepod_plot | ostracod_plot)
 ```
+
+
+## e. Interpreting the figure
+
+The biggest differences in copepod and ostracod abundance across sites can be seen at the East Channel site, where copepods are highest in abundance, and osrtacods are extremely low in abundance. The two species are similar in abundance at the Main Channel, South of Phelps Bridge, North of Phelps Bridge, and Devereux Creek sites.
+
+There doesn't appear to be a correlation between site salinity and copepod or ostracod abundance. Median salinity is order by descending ppt from left to right on the x-axis, and the invertebrate abundance plots with the same x-axis don't follow a descending or ascending pattern, appearing relatively random.
+
 
