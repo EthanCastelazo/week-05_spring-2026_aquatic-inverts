@@ -62,7 +62,6 @@ sites <- read_xlsx(
 )
 
 # water quality
-
 water_quality <- read_xlsx(
   here("data", "Aquatic Sampling Data-2026-03-10.xlsx"),
   sheet = "Water Quality",
@@ -89,23 +88,34 @@ taxon_list_clean <- taxon_list %>%
                                      case = "snake"))
 
 
-
+# creatinga a new object from water quality
 water_quality_clean <- water_quality %>% 
+  # cleaning column names
   clean_names() %>% 
+  # filtering join: only include sites in ncos_sites
   semi_join(ncos_sites, by = "site") %>% 
+  # creating new column to join with later data frame
   unite("date_site", date, site, remove = TRUE) %>%
+  # grouping by date/site
   group_by(date_site) %>% 
+  # calculating median pH, salinity, and DO
   summarize(med_ph = median(p_h, na.rm = TRUE),
             med_sal = median(salinity_ppt, na.rm = TRUE),
             med_do = median(dissolved_oxygen_mg_l, na.rm = TRUE)) %>% 
+  # ungrouping the data frame
   ungroup() %>% 
+  # filtering out salinity outliers
   filter(date_site != "2022-08-12NVBR")
 
-
+# creating a new object from aq_ins
 aq_ins_clean <- aq_ins %>% 
+  # cleaning column names
   clean_names() %>% 
+  # filtering join: only include quarterly NCOS surveys from ncos_site
   semi_join(ncos_sites, by = "site") %>% 
+  # renaming column
   rename(date = date_on_vial) %>% 
+  # select columns of interest
   select(date, sample_type, site,
          ostracod,
          copepod,
@@ -116,6 +126,7 @@ aq_ins_clean <- aq_ins %>%
          annelida_oligochaete,
          annelida_polychaete,
          diptera_chironomid) %>% 
+  # filtering sample types
   filter(sample_type %in% c("FB250", "FB 250")) %>% 
   pivot_longer(
     # columns to make longer
@@ -127,10 +138,15 @@ aq_ins_clean <- aq_ins %>%
   ) %>% 
   group_by(date, site, taxon) %>% 
   summarize(ave_lit = sum(abundance, na.rm = TRUE)/7.5) %>% 
+  # ungrouping the data frame
   ungroup() %>% 
-  unite("date_site", date, site, remove = FALSE) %>% 
-  left_join(water_quality_clean, by = "date_site") %>% 
+  # created new column to join with data frame
+  unite("date_site", date, site, remove = FALSE) %>%
+  # joined with water quality clean
+  left_join(water_quality_clean, by = "date_site") %>%
+  # joined wtth taxanomic information
   left_join(taxon_list_clean, by = c("taxon" = "verbatim_name")) %>% 
+  # making a new column called site_full with proper names
   mutate(site_full = case_when(
     site == "NVBR" ~ "North of Venoco Bridge",
     site == "NEC" ~ "East Channel",
@@ -139,15 +155,19 @@ aq_ins_clean <- aq_ins %>%
     site == "NPB1" ~ "North of Phelps Bridge",
     site == "NPB2" ~ "Phelps Road",
     site == "NDC" ~ "Devereux Creek")) %>% 
+  # reordering site full by median salinity
   mutate(site_full = fct_reorder(site_full,
                                  med_sal,
                                  .fun = "median",
                                  .na_rm = TRUE),
+         # reversing the order of site_full
          site_full = fct_rev(site_full))
 
-
+# creating new object from aq_ins_clean
 copepods <- aq_ins_clean %>% 
+  # filtering to only include copepod observations
   filter(taxon == "copepod") %>% 
+  # creating a new column that takes the natural log of average abundance per liter
   mutate(log_ave_lit = log(ave_lit + 1))
 
 ```
@@ -167,10 +187,14 @@ copepods <- aq_ins_clean %>%
 ```{r}
 #| label: ostracod-wrangling
 
-ostracods <- aq_ins_clean %>% 
+# creating a new object called ostracods
+ostracods <- aq_ins_clean %>%
+  # filtering to only include ostracods
   filter(taxon == "ostracod") %>% 
+  # creating a new column that takes the natural log of average abundance per liter
   mutate(log_ave_lit = log(ave_lit + 1))
 
+# taking a random sample from the new data frame
 slice_sample(ostracods, n = 10)
 
 ```
@@ -181,23 +205,31 @@ slice_sample(ostracods, n = 10)
 ```{r}
 #| label: ostracod-visualization
 
+# creating a new object that stores the ostracod ggplot
 ostracod_plot <- ggplot(data = ostracods,
                        mapping = aes(x = site_full,
                                      y = log_ave_lit))+
+  # plotting ostracod observations with geom_jitter
   geom_jitter(height = 0,
               width = 0.1,
               shape = 21) +
+  # adding a distinct green median point
   stat_summary(geom = "point",
               fun = median,
               color = "green",
               size = 2)+
+  # getting rid of overlapping labels
   scale_x_discrete(labels = label_wrap(width = 10)) +
+  # getting rid of y-axis space at the bottom of the graph
   scale_y_continuous(expand = c(0, 0),
                      limits = c(0, 8)) +
-                     labs(x = "site",
-                          y = "log + 1 transformed average abundance/L",
-                          title = "Ostracods") +
-                     theme_bw()
+  # adding labels
+  labs(x = "site",
+        y = "log + 1 transformed average abundance/L",
+        title = "Ostracods") +
+  # getting off the default theme
+  theme_bw()
+
 ostracod_plot
 ```
 
@@ -212,15 +244,20 @@ ostracod_plot
 salinity_plot <- ggplot(data = aq_ins_clean,
                         mapping = aes(x = site_full,
                                       y = med_sal))+
+  # plotting salinity measurements with geom_jitter
   geom_jitter(height = 0,
               width = 0.1,
               shape = 21)+
+  # adding a distinct red median point
   stat_summary(geom = "point",
                fun = median,
                color = 'red')+
+  # getting rid of overlapping labels
   scale_x_discrete(labels = label_wrap(width = 10))+
+  # getting rid of y-axis space at the bottom
   scale_y_continuous(expand = c(0, 0),
                      limits = c(0, 200)) +
+  # adding labels
   labs(x = "site",
        y = " Median Salinity (ppt)",
        title = "Site Salinity")
@@ -231,20 +268,26 @@ salinity_plot <- ggplot(data = aq_ins_clean,
 copepod_plot <- ggplot(data = copepods,
                        mapping = aes(x = site_full,
                                      y = log_ave_lit))+
+  # plotting copepod observations using geom_jitter
   geom_jitter(height = 0,
               width = 0.1,
               shape = 21) +
+  # adding a distinct blue median point
   stat_summary(geom = "point",
               fun = median,
               color = "blue",
               size = 2)+
+  # getting rid of overlapping labels
   scale_x_discrete(labels = label_wrap(width = 10)) +
-scale_y_continuous(expand = c(0, 0),
+  # getting rid of y-axis space at the bottom
+  scale_y_continuous(expand = c(0, 0),
                      limits = c(0, 10)) +
-                     labs(x = "site",
-                          y = "log + 1 transformed average abundance/L",
-                          title = "Copepod") +
-                     theme_bw()
+  # adding labels
+  labs(x = "site",
+       y = "log + 1 transformed average abundance/L",
+       title = "Copepod") +
+  # getting off the default theme
+  theme_bw()
 
 ```
 
@@ -253,6 +296,7 @@ scale_y_continuous(expand = c(0, 0),
 #| fig-width: 12
 #| fig-height: 8
 
+# printing a multi panel view of my 3 plots
 salinity_plot /
   (copepod_plot | ostracod_plot)
 ```
@@ -281,14 +325,26 @@ There doesn't appear to be a correlation between site salinity and copepod or os
 ```{r}
 #| label: more-wrangling-aq_ins_clean
 
+# creating a new object from aq_ins_clean
 avg_taxon_abundance <- aq_ins_clean %>%
-  select(date_site, taxon, med_sal, ave_lit) %>% 
+  # filtering out na salinity rows
+  filter(!is.na(med_sal)) %>%
+  # filtering out rows with 0 invertebrate observations, better for visualization
+  filter(!ave_lit == 0) %>% 
+  # selecting relevant columns
+  select(date_site, taxon, med_sal, ave_lit) %>%
+  # creating new columns, correcting taxon column
   mutate(
+    # converting taxon to title case
     taxon = to_any_case(taxon, case = "title"),
+    # taking natural log of average abundance per liter
     log_ave_lit = log(ave_lit + 1),
+    # reorder taxon column based on max average abundance
     taxon = fct_reorder(taxon, ave_lit, .fun = "max", .na_rm = TRUE),
+    # reversing order so that top rows appear first
     taxon = fct_rev(taxon))
 
+# printing a radnom sample of 10 rows
 slice_sample(avg_taxon_abundance, n = 10)
 
 ```
@@ -298,21 +354,35 @@ slice_sample(avg_taxon_abundance, n = 10)
 ```{r}
 #| label: coding-avg-abundance-by-salinity
 
+# plotting avg_taxon_abundance with salinity on the x-axis and average abundance on the y-axis
 ggplot(data = avg_taxon_abundance,
        mapping = aes(x = med_sal,
                      y = log_ave_lit,
                      color = taxon))+
+  # plotting 
   geom_point()+
+  # making a new panel for each taxon
   facet_wrap(~ taxon)+
+  # getting off the default theme
   theme_bw()+
+  # adding custom color palette
   scale_color_manual(values = natparks.pals("Torres"))+
+  # removing the legend
   theme(legend.position = "none")+
+  # removing space on the y-axis at the bottom
   scale_y_continuous(expand = c(0,0),
-                     limits = c(-0.5,8))+
-  labs(x = "Median Salinity",
-       y = "Log of Average Invertebrate Abundance\nper Liter + 1",
+                     limits = c(0,8))+
+  # removing space on the x-axis
+  scale_x_continuous(expand = c(0,0),
+                     limits = c(0,200))+
+  # adding labels
+  labs(x = "Median Salinity (ppt)",
+       y = "ln of Average Invertebrate\nAbundance per Liter + 1",
        title = "Invertebrate Abundance in Relation to Median Water Salinity")
 
 
 ```
+
+## d. Interpretting the Figure
+All taxa appear to prefer water with salinity between 0 and 100 ppt, as most data points are clustered within that range. The invertebrates that are most abundant at relatively low salinity levels (0-50 ppt) are Copepods, Ostracods, and Cladocera, who all spike in abundance, with Copepods nearly reaching a maximum of of 966 individuals per liter at only 4.1 median salinity. There are two notable exceptions to the trend of high abundance in low salinity - Hemiptera Corixidae Boatman and Diptera Ceratopogonidae were both observed at fairly high abundance on August 8th 2022 when median salinity was at 174 ppt, while all others species were not observed. Overall, this figure shows that invertebrates are found in higher levels of abundance when salinity is low.
 
