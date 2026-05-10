@@ -103,7 +103,7 @@ aq_ins_clean <- aq_ins %>%
   clean_names() %>% 
   semi_join(ncos_sites, by = "site") %>% 
   rename(date = date_on_vial) %>% 
-  select(date, sample_type,site,
+  select(date, sample_type, site,
          ostracod,
          copepod,
          hemiptera_corixidae_boatman,
@@ -272,4 +272,22 @@ There doesn't appear to be a correlation between site salinity and copepod or os
 - geometry: geom_points()
 - facets: facet_wrap(~ taxon)
 
+## b. Wrangling the Data
 
+
+```{r}
+#| label: more-wrangling-aq_ins_clean
+
+avg_taxon_abundance <- aq_ins_clean %>%
+  select(date_site, taxon, med_sal, ave_lit) %>% 
+  mutate(
+    taxon = to_any_case(taxon, case = "title"),
+    log_ave_lit = log(ave_lit + 1),
+    taxon = fct_reorder(taxon, ave_lit, .fun = "max", .na_rm = TRUE)
+  )
+
+slice_sample(avg_taxon_abundance, n = 10)
+
+```
+
+## c. Coding the figure
