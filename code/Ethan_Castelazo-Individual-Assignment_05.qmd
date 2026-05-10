@@ -377,7 +377,7 @@ ggplot(data = avg_taxon_abundance,
                      limits = c(0,200))+
   # adding labels
   labs(x = "Median Salinity (ppt)",
-       y = "ln of Average Invertebrate\nAbundance per Liter + 1",
+       y = "Natural Log of Average Invertebrate\nAbundance per Liter + 1",
        title = "Invertebrate Abundance in Relation to Median Water Salinity")
 
 
