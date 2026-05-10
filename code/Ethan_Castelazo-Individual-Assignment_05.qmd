@@ -20,6 +20,7 @@ execute:
 ```{r}
 #| label: packages
 
+#general use
 library(tidyverse)
 library(here)
 library(janitor)
@@ -36,6 +37,8 @@ library(naniar)
 
 # visualizing
 library(patchwork)
+library(scales)
+library(NatParksPalettes)
 ```
 
 
@@ -283,11 +286,33 @@ avg_taxon_abundance <- aq_ins_clean %>%
   mutate(
     taxon = to_any_case(taxon, case = "title"),
     log_ave_lit = log(ave_lit + 1),
-    taxon = fct_reorder(taxon, ave_lit, .fun = "max", .na_rm = TRUE)
-  )
+    taxon = fct_reorder(taxon, ave_lit, .fun = "max", .na_rm = TRUE),
+    taxon = fct_rev(taxon))
 
 slice_sample(avg_taxon_abundance, n = 10)
 
 ```
 
 ## c. Coding the figure
+
+```{r}
+#| label: coding-avg-abundance-by-salinity
+
+ggplot(data = avg_taxon_abundance,
+       mapping = aes(x = med_sal,
+                     y = log_ave_lit,
+                     color = taxon))+
+  geom_point()+
+  facet_wrap(~ taxon)+
+  theme_bw()+
+  scale_color_manual(values = natparks.pals("Torres"))+
+  theme(legend.position = "none")+
+  scale_y_continuous(expand = c(0,0),
+                     limits = c(-0.5,8))+
+  labs(x = "Median Salinity",
+       y = "Log of Average Invertebrate Abundance\nper Liter + 1",
+       title = "Invertebrate Abundance in Relation to Median Water Salinity")
+
+
+```
+
